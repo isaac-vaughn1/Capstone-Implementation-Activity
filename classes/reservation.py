@@ -33,29 +33,29 @@ class Reservation:
         self._event = event
         self._room = room
 
-    def submit() -> None:
+    def submit(self) -> None:
         pass
 
-    def edit(start: datetime, end: datetime, room) -> None:  # room is gonna be of type Room once you guys implement that class
+    def edit(self, start: datetime, end: datetime, room) -> None:  # room is gonna be of type Room once you guys implement that class
         pass
 
-    def cancel(reason: str) -> None:
+    def cancel(self, reason: str) -> None:
         pass
 
-    def approve(approver, comment: str) -> None:
+    def approve(self, approver, comment: str) -> None:
         pass
 
-    def reject(approver, comment: str) -> None:  # similar to room above, approver will be of type Admin
+    def reject(self, approver, comment: str) -> None:  # similar to room above, approver will be of type Admin
         pass
 
-    def is_valid() -> bool:
+    def is_valid(self) -> bool:
         pass
 
-    def check_conflicts() -> bool:
+    def check_conflicts(self) -> bool:
         pass
 
-    def _save_changes() -> None:
+    def _save_changes(self) -> None:
         pass
 
-    def _notify(type) -> None:
+    def _notify(self, type) -> None:
         pass
