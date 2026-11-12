@@ -4,7 +4,7 @@ from user import User
 
 if TYPE_CHECKING:
     from RoomFacilityClasses import facility as Facility, room as Room
-    from event import user as Event  # event.py names its class 'user'
+    from event import Event
 
 class Admin(User):
     def __init__(self, userId: int, name: str, email: str, passwordHash: str):
@@ -12,8 +12,8 @@ class Admin(User):
 
     def editEvent(self, event: Event, title: str = None, description: str = None) -> Event:
         # admins can edit any event; fields left as None keep their current value
-        event.__updateDetails__(title if title is not None else event.title,
-                                description if description is not None else event.description)
+        event.updateDetails(title if title is not None else event.title,
+                            description if description is not None else event.description)
         return event
 
     def editFacility(self, facility: Facility, name: str = None, location: str = None,
