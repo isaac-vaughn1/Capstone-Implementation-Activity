@@ -4,3 +4,4 @@ Group activity working on implementing our chosen case study (Smart Campus Booki
 
 ## Work Distribution
 **Isaac Vaughn**: Created the full Reservation class
+**Zachary Schade**: Created the Event class
