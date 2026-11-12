@@ -6,7 +6,7 @@ from reservation import Reservation
 
 if TYPE_CHECKING:
     from RoomFacilityClasses import room as Room
-    from event import user as Event  # event.py names its class 'user'
+    from event import Event
 
 class Student(User):
     def __init__(self, userId: int, name: str, email: str, passwordHash: str):
@@ -23,8 +23,8 @@ class Student(User):
 
     def editEvent(self, event: Event, title: str = None, description: str = None) -> Event:
         # students can only edit events they scheduled; fields left as None keep their current value
-        if not any(r._event is event for r in self._reservations):
+        if not any(r.event is event for r in self._reservations):
             raise PermissionError("Students can only edit events they scheduled")
-        event.__updateDetails__(title if title is not None else event.title,
-                                description if description is not None else event.description)
+        event.updateDetails(title if title is not None else event.title,
+                            description if description is not None else event.description)
         return event
