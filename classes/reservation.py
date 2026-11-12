@@ -2,7 +2,7 @@ from enum import Enum
 from datetime import datetime
 import itertools
 from admin import Admin
-# from event import Event
+from event import Event
 from RoomFacilityClasses import room as Room
 from user import User
 
@@ -40,6 +40,19 @@ class Reservation:
         self._room = room
 
         _all_reservations.append(self)
+
+
+    @property
+    def event(self):
+        return self._event
+
+    @property
+    def start_time(self):
+        return self._start_time
+
+
+    def get_all_reservations() -> list:
+        return list(_all_reservations)
 
 
     def submit(self) -> None:
@@ -114,7 +127,7 @@ class Reservation:
 
 
     def is_valid(self) -> bool:
-        return self._start_time > datetime.now() and self._room.capacity >= self._event._expected_attendance  # TODO: replace that attendance check woth the real event attribute name once implemented
+        return self._start_time > datetime.now() and self._room.capacity >= self._event.expectedAttendance
 
 
     def check_conflicts(self) -> bool:

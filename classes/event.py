@@ -1,7 +1,7 @@
-from reservation import reservation
+from reservation import Reservation
 from datetime import datetime
 
-class user:
+class Event:
     def __init__(self, eventId: int, title: str, description: str, expectedAttendance: int, isPublic: bool):
         self.eventId = eventId
         self.title = title
@@ -9,11 +9,11 @@ class user:
         self.expectedAttendance = expectedAttendance
         self.isPublic = isPublic
 
-    def __updateDetails__(self, title: str, description: str):
+    def updateDetails(self, title: str, description: str):
         self.title = title
         self.description = description
 
-    def __is__Upcoming__(self):
-        if reservation.eventId == self.eventId and reservation.startTime > datetime.now():
+    def is_Upcoming(self, reservation):
+        if reservation.event.eventId == self.eventId and reservation.start_time > datetime.now():
             return True
         return False
