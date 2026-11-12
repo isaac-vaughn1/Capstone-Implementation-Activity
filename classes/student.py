@@ -1,4 +1,3 @@
-# need to import Event class when it is made.
 from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -7,6 +6,7 @@ from reservation import Reservation
 
 if TYPE_CHECKING:
     from RoomFacilityClasses import room as Room
+    from event import user as Event  # event.py names its class 'user'
 
 class Student(User):
     def __init__(self, userId: int, name: str, email: str, passwordHash: str):
@@ -21,6 +21,10 @@ class Student(User):
         room.reservations.append(reservation)  # lets room.isAvailable()/getSchedule() see it
         return reservation
 
-    def editEvent(self, event: Event):
-        # need to call event.updateDetails() once the Event class is made.
-        pass
+    def editEvent(self, event: Event, title: str = None, description: str = None) -> Event:
+        # students can only edit events they scheduled; fields left as None keep their current value
+        if not any(r._event is event for r in self._reservations):
+            raise PermissionError("Students can only edit events they scheduled")
+        event.__updateDetails__(title if title is not None else event.title,
+                                description if description is not None else event.description)
+        return event

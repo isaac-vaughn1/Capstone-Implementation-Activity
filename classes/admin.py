@@ -1,18 +1,20 @@
-# need to import Event class when it is made.
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from user import User
 
 if TYPE_CHECKING:
     from RoomFacilityClasses import facility as Facility, room as Room
+    from event import user as Event  # event.py names its class 'user'
 
 class Admin(User):
     def __init__(self, userId: int, name: str, email: str, passwordHash: str):
         super().__init__(userId, name, email, passwordHash)
 
-    def editEvent(self, event: Event):
-        # need to call event.updateDetails() once the Event class is made.
-        pass
+    def editEvent(self, event: Event, title: str = None, description: str = None) -> Event:
+        # admins can edit any event; fields left as None keep their current value
+        event.__updateDetails__(title if title is not None else event.title,
+                                description if description is not None else event.description)
+        return event
 
     def editFacility(self, facility: Facility, name: str = None, location: str = None,
                      facilityType: str = None, isActive: bool = None) -> Facility:
