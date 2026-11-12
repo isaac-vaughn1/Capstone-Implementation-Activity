@@ -6,3 +6,4 @@ Group activity working on implementing our chosen case study (Smart Campus Booki
 **Isaac Vaughn**: Created the full Reservation class  
 **Zachary Schade**: Created the Event class  
 **Joshua Chamberlain**: Created the Room and Facility Classes
+**Joshua Chamberlain**: Created Student Admin User Classes
