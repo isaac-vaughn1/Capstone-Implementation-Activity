@@ -1,7 +1,10 @@
-# need to import Reservation class when it is made.
 from __future__ import annotations
 import hashlib
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from reservation import Reservation
 
 class User:
     _nextUserId = 1
