@@ -22,7 +22,7 @@ class ReservationStatus(Enum):
 
 class Reservation:
 
-    def __init__(self, submitter: User, event, room: Room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:
+    def __init__(self, submitter: User, event: Event, room: Room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:
         if end_time <= start_time:
             raise ValueError("End time must come after the start time")
         
