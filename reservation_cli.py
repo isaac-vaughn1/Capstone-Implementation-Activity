@@ -6,11 +6,13 @@ from datetime import datetime
 from student import Student
 from admin import Admin
 from RoomFacilityClasses import room
+from event import Event
 import reservation
-from reservation import Reservation, all_reservations
+from reservation import Reservation, _all_reservations as all_reservations
 
 # a few things to start with
-rooms = [room(1, "101", 30), room(2, "102", 50), room(3, "201", 100)]
+rooms = [room(1, 101, 30), room(2, 102, 50), room(3, 201, 100)]
+demo_event = Event(1, "Demo Event", "just for the demo", 10, True)
 users = [
     Student.register("Alice", "alice@umsystem.edu", "pass1"),
     Student.register("Bob", "bob@umsystem.edu", "pass2"),
@@ -31,7 +33,7 @@ HELP = """commands:
 
 def find_room(number):
     for r in rooms:
-        if r.roomNumber == number:
+        if r.roomNumber == int(number):
             return r
     return None
 
@@ -61,7 +63,7 @@ def run_command(parts):
         if found is None:
             print("no such room")
             return
-        r = Reservation(current_user, None, found, datetime.fromisoformat(parts[2]), datetime.fromisoformat(parts[3]))
+        r = Reservation(current_user, demo_event, found, datetime.fromisoformat(parts[2]), datetime.fromisoformat(parts[3]))
         print(f"created reservation {r._reservation_id}, status {r._status.name}")
     elif cmd == "list":
         show_list()

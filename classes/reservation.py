@@ -1,12 +1,20 @@
+from __future__ import annotations
 from enum import Enum
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 import itertools
 from admin import Admin
 
+if TYPE_CHECKING:  # only needed for type hints, importing them for real causes circular imports
+    from event import Event
+    from RoomFacilityClasses import room as Room
+    from user import User
+
+
 _reservation_ids = itertools.count()  # so we can have auto-generated ids from 0-n
+_all_reservations = []
 
 _now = datetime.now().replace(microsecond=0)  # simulated clock, only moves with advance_time()
-all_reservations = []
 
 RETENTION_PERIOD = timedelta(days=30)
 REMINDER_BEFORE_START = timedelta(hours=24)
@@ -21,9 +29,8 @@ class ReservationStatus(Enum):
     CANCELLED = "cancelled"
     EXPIRED = "expired"
 
-# the composite states from the diagram
+# the closed composite state from the diagram
 CLOSED_STATES = {ReservationStatus.COMPLETED, ReservationStatus.REJECTED, ReservationStatus.CANCELLED, ReservationStatus.EXPIRED}
-HOLDS_SLOT = {ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED, ReservationStatus.IN_PROGRESS}
 
 def get_now() -> datetime:
     return _now
@@ -36,13 +43,13 @@ def advance_time(hours: float) -> None:
     changed = True
     while changed:
         changed = False
-        for reservation in list(all_reservations):
+        for reservation in list(_all_reservations):
             if reservation._check_time():
                 changed = True
 
 class Reservation:
 
-    def __init__(self, submitter, event, room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:  # submitter will be a User, event will be an Event, and room will be a Room after those classes get made
+    def __init__(self, submitter: User, event: Event, room: Room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:
         if end_time <= start_time:
             raise ValueError("End time must come after the start time")
 
@@ -61,7 +68,21 @@ class Reservation:
         self._reminder_sent = False
         self._closed_at = None
 
-        all_reservations.append(self)
+        _all_reservations.append(self)
+
+
+    @property
+    def event(self):
+        return self._event
+
+    @property
+    def start_time(self):
+        return self._start_time
+
+
+    def get_all_reservations() -> list:
+        return list(_all_reservations)
+
 
     def submit(self) -> None:
         if self._status != ReservationStatus.DRAFT:
@@ -78,7 +99,8 @@ class Reservation:
         self._submitted_at = _now
         self._notify("SUBMITTED")
 
-    def edit(self, start: datetime, end: datetime, room) -> None:  # room is gonna be of type Room once you guys implement that class
+
+    def edit(self, start: datetime, end: datetime, room: Room) -> None:
         if self._status not in {ReservationStatus.DRAFT, ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED}:
             self._not_allowed("edit")
             return
@@ -88,16 +110,18 @@ class Reservation:
 
         self._save_changes(start, end, room)
 
-        # editing after it was submitted pulls it back to a draft, which frees the time slot
+        # pending and approved reservations are sent back to draft stage during edits
         if self._status != ReservationStatus.DRAFT:
             self._status = ReservationStatus.DRAFT
             self._submitted_at = None
+            self._review_comment = ""
             self._reminder_sent = False
             self._notify("WITHDRAWN")
 
+
     def cancel(self, reason: str = "") -> None:
         if self._status == ReservationStatus.DRAFT:
-            all_reservations.remove(self)
+            self._remove()
             return
         if self._status not in {ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED}:
             self._not_allowed("cancel")
@@ -107,7 +131,8 @@ class Reservation:
         self._close(ReservationStatus.CANCELLED)
         self._notify("CANCELLATION")
 
-    def approve(self, approver, comment: str = "") -> None:
+
+    def approve(self, approver: Admin, comment: str = "") -> None:
         if self._status != ReservationStatus.PENDING_APPROVAL:
             self._not_allowed("approve")
             return
@@ -119,7 +144,8 @@ class Reservation:
         self._review_comment = comment
         self._notify("CONFIRMATION")
 
-    def reject(self, approver, comment: str = "") -> None:  # similar to room above, approver will be of type Admin
+
+    def reject(self, approver: Admin, comment: str = "") -> None:
         if self._status != ReservationStatus.PENDING_APPROVAL:
             self._not_allowed("reject")
             return
@@ -131,17 +157,21 @@ class Reservation:
         self._close(ReservationStatus.REJECTED)
         self._notify("REJECTION")
 
+
     def is_valid(self) -> bool:
-        # the room is the facility for now, will need to change this once the facility classes are linked up
-        return self._room is not None and self._start_time < self._end_time and self._start_time > _now
+        return self._room is not None and self._start_time < self._end_time and self._start_time > _now and self._room.capacity >= self._event.expectedAttendance
+
 
     def check_conflicts(self) -> bool:
-        for other in all_reservations:
-            if other is self or other._status not in HOLDS_SLOT:
-                continue
-            if other._room is self._room and other._start_time < self._end_time and self._start_time < other._end_time:
+        holding = {ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED, ReservationStatus.IN_PROGRESS}
+
+        for other in _all_reservations:
+            if (other is not self and other._room is self._room and other._status in holding
+                and other._start_time < self._end_time and self._start_time < other._end_time):
                 return True
+
         return False
+
 
     def _check_time(self) -> bool:
         # returns True if something changed
@@ -164,22 +194,35 @@ class Reservation:
             return True
 
         if self._status in CLOSED_STATES and _now - self._closed_at >= RETENTION_PERIOD:
-            all_reservations.remove(self)
+            self._remove()
             return True
 
         return False
 
-    def _close(self, status) -> None:
+
+    def _close(self, status: ReservationStatus) -> None:
         self._status = status
         self._closed_at = _now
 
-    def _save_changes(self, start, end, room) -> None:
+
+    def _remove(self) -> None:
+        # also takes it out of the lists the user and room keep
+        _all_reservations.remove(self)
+        for owner in (self._submitter, self._room):
+            for name in ("_reservations", "reservations"):
+                if self in getattr(owner, name, []):
+                    getattr(owner, name).remove(self)
+
+
+    def _save_changes(self, start: datetime, end: datetime, room: Room) -> None:
         self._start_time = start
         self._end_time = end
         self._room = room
 
-    def _not_allowed(self, event) -> None:
+
+    def _not_allowed(self, event: str) -> None:
         print(f"{event} not allowed in {self._status.name}")
 
-    def _notify(self, notification) -> None:
+
+    def _notify(self, notification: str) -> None:
         print(f"[NOTIFY] {notification}: reservation {self._reservation_id}")
