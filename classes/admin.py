@@ -1,7 +1,10 @@
 # need to import Event class when it is made.
 from __future__ import annotations
+from typing import TYPE_CHECKING
 from user import User
-from RoomFacilityClasses import facility as Facility, room as Room
+
+if TYPE_CHECKING:
+    from RoomFacilityClasses import facility as Facility, room as Room
 
 class Admin(User):
     def __init__(self, userId: int, name: str, email: str, passwordHash: str):
