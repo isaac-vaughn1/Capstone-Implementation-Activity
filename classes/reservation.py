@@ -1,8 +1,14 @@
 from enum import Enum
 from datetime import datetime
 import itertools
+from admin import Admin
+# from event import Event
+from RoomFacilityClasses import room as Room
+from user import User
+
 
 _reservation_ids = itertools.count()  # so we can have auto-generated ids from 0-n
+_all_reservations = []
 
 class ReservationStatus(Enum):
     DRAFT = "draft"
@@ -16,7 +22,7 @@ class ReservationStatus(Enum):
 
 class Reservation:
 
-    def __init__(self, submitter, event, room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:  # submitter will be a User, event will be an Event, and room will be a Room after those classes get made
+    def __init__(self, submitter: User, event, room: Room, start_time, end_time, equipment_needed = None, support_needed = None) -> None:
         if end_time <= start_time:
             raise ValueError("End time must come after the start time")
         
@@ -33,20 +39,26 @@ class Reservation:
         self._event = event
         self._room = room
 
+        _all_reservations.append(self)
+
+
     def submit(self) -> None:
         if self._status != ReservationStatus.DRAFT:
             raise ValueError("Only drafts may be submitted")
+        
         if not self.is_valid():
             raise ValueError("Invalid reservation details")
+        
         if self.check_conflicts():
             self._notify("Your reservation has conflicts")
             return
 
-        self._status = ReservationStatus.DRAFT
+        self._status = ReservationStatus.PENDING_APPROVAL
         self._submitted_at = datetime.now()
         self._notify("Reservation submitted")
 
-    def edit(self, start: datetime, end: datetime, room) -> None:  # room is gonna be of type Room once you guys implement that class
+
+    def edit(self, start: datetime, end: datetime, room: Room) -> None:
         if self._status not in {ReservationStatus.DRAFT, ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED}:
             raise ValueError(f"{self._status.value} reservations cannot be edited")
 
@@ -55,41 +67,66 @@ class Reservation:
 
         self._start_time = start
         self._end_time = end
+        self._room = room
 
-        # probably still need to add more functionality here but am going to wait until the other classes are made
+        # pending and approved reservations are sent back to draft stage during edits
+        if self._status != ReservationStatus.DRAFT:
+            self._status = ReservationStatus.DRAFT
+            self._submitted_at = None
+            self._review_comment = ""
+            self._notify("Reservation removed, please edit and resubmit")
+
 
     def cancel(self, reason: str) -> None:
+        if self._status not in {ReservationStatus.DRAFT, ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED}:
+            raise ValueError(f"{self._status.value} reservations may not be cancelled")
+        
         self._cancel_reason = reason
         self._status = ReservationStatus.CANCELLED
         self._notify("REservation cancelled")
 
-    def approve(self, approver, comment: str) -> None:
+
+    def approve(self, approver: Admin, comment: str) -> None:
+        if not isinstance(approver, Admin):
+            raise ValueError("Only admins may approve reservations")
+        
+        if self._status != ReservationStatus.PENDING_APPROVAL:
+            raise ValueError("Only pending reservatoins may be approved")
+        
         if self.check_conflicts():
-            raise ValueError("This room is already booked for that time : (")
+            raise ValueError("This room is already booked for that time :-(")
         
         self._status = ReservationStatus.APPROVED
         self._review_comment = comment
-        self._save_changes()
         self._notify("Reservation Approved")
 
-    def reject(self, approver, comment: str) -> None:  # similar to room above, approver will be of type Admin
+
+    def reject(self, approver: Admin, comment: str) -> None:
+        if not isinstance(approver, Admin):
+            raise ValueError("Only admins may reject reservations")
+        
+        if self._status != ReservationStatus.PENDING_APPROVAL:
+            raise ValueError("Only pending reservations may be rejected")
+        
         self._status = ReservationStatus.REJECTED
         self._review_comment = comment
-        self._save_changes()
         self._notify(f"Reservation rejected: {comment}")
 
-    def is_valid(self) -> bool:
-        facility = self._room._facility
 
-        # I can edit this check pretty easy after the other classes are implemented, since this depends on specific attributes of other classes
-        return self._start_time > datetime.now() and facility is not None and facility._is_active and self._room._capacity >= self._event._expected_attendance
+    def is_valid(self) -> bool:
+        return self._start_time > datetime.now() and self._room.capacity >= self._event._expected_attendance  # TODO: replace that attendance check woth the real event attribute name once implemented
+
 
     def check_conflicts(self) -> bool:
-        return not self._room.is_available()
+        holding = {ReservationStatus.PENDING_APPROVAL, ReservationStatus.APPROVED, ReservationStatus.IN_PROGRESS}
 
-    # not sure if we even need this since we have no database
-    def _save_changes(self) -> None:
-        pass
+        for other in _all_reservations:
+            if (other is not self and other._room is self._room and other._status in holding 
+                and other._start_time < self._end_time and self._start_time < other._end_time):
+                return True 
 
-    def _notify(self, notification) -> None:
+        return False
+
+
+    def _notify(self, notification: str) -> None:
         print(f"System notification to {self._submitter._name}: {notification}")
